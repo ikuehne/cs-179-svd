@@ -1,0 +1,44 @@
+# Prerequisites.
+*.d
+
+# Data.
+data/*
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# OSX debug information
+*.dSYM
+
+# Vim swap files
+.*.swp
+
+# OSX directory layout information.
+.DS_Store
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.appef
