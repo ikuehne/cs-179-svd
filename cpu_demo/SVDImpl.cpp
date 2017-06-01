@@ -15,8 +15,9 @@
 #include "SVDImpl.hh"
 
 SVDImpl::SVDImpl(int nusers, int nmovies, int nfeatures)
-      : nfeatures(nfeatures), gen(std::random_device()()),
-        user_features(nfeatures, nusers), movie_features(nfeatures, nmovies) {
+      : nfeatures(nfeatures),
+        user_features(nfeatures, nusers), movie_features(nfeatures, nmovies),
+        gen(std::random_device()()) {
     // Set the features to 0.
     user_features.block(0, 0, nfeatures, nusers).setConstant(0);
     movie_features.block(0, 0, nfeatures, nmovies).setConstant(0);
@@ -41,6 +42,7 @@ void SVDImpl::fit(uint32_t *users, uint32_t *movies, float *ratings,
     /* Time how long it takes to train each feature. */
     time_t start = time(0);
 
+    // For each feature.
     for (int i = 0; i < nfeatures; ++i) {
         if (verbose) {
             std::cerr << "==============================" << std::endl;
@@ -52,22 +54,9 @@ void SVDImpl::fit(uint32_t *users, uint32_t *movies, float *ratings,
         movie_features.row(i).setConstant(0.1);
 
         // Initialize the feature.
-        // user_features.row(i) = user_features.row(i).unaryExpr([=](float) -> float {
-        //     return 0.01 * gaussian(gen);
-        // });
-
-        // movie_features.row(i) = movie_features.row(i).unaryExpr([=](float) -> float {
-        //     return 0.01 * gaussian(gen);
-        // });
-
-        // float prev_rmse;
-        // float rmse;
-
         for (int j = 0; j < niters; ++j) {
-            // if ((j > 0) && (rmse >= prev_rmse)) {
-            //     break;
-            // }
 
+            // Print RMSEs in verbose mode.
             if (verbose && j % 10 == 0) {
                 // Calculate the training set RMSE.
                 predict_inplace(user_arr, movie_arr, error);
@@ -76,13 +65,28 @@ void SVDImpl::fit(uint32_t *users, uint32_t *movies, float *ratings,
 
                 // So this is the RMSE.
                 float rmse = sqrt(error.square().mean());
-                // if (j > 0) {
-                //     prev_rmse = rmse;
-                // }
 
                 std::cerr << "RMSE: " << rmse << std::endl;
                 std::cerr << "Iteration " << j << std::endl << std::endl;
             }
+
+            /*
+             * This `for` loop can be parallelized.
+             *
+             * Naively, we can just use atomic additions when adding to the
+             * features; everything else is independent between iterations of
+             * this loop.  We can just have each block run (for example) 1024
+             * iterations of this loop at a time.
+             *
+             * The atomic operations will start to become extremely expensive,
+             * however.  One way to solve that problem is to compute the
+             * topology of the data by splitting it into chunks with no users
+             * and movies in common (using, for example, a simple greedy
+             * algorithm).  Then each block can be assigned several such
+             * chunks, compute the gradient for the points in that chunk, and
+             * the sums of all of the gradients can be computed and added to
+             * the features in a separate kernel.
+             */
 
 #pragma omp parallel for
             // k -- index into the input data.  So user_arr(k) is the kth
@@ -90,15 +94,16 @@ void SVDImpl::fit(uint32_t *users, uint32_t *movies, float *ratings,
             for (int k = 0; k < npoints; k++) {
                 // Get the error as the actual rating
                 float err = rating_arr(k);
-                // minus the dot product of the user features and the movie
-                // features.
-                // err -= predict(user_arr(k), movie_arr(k));
 
+                // minus the dot product of the user features and the movie
+                // features (use cached residuals).
                 if (j != niters - 1) {
                     err -= residuals(k);
-                    err -= movie_features(i, movie_arr(k)) * user_features(i, user_arr(k));
+                    err -= movie_features(i, movie_arr(k))
+                         * user_features(i, user_arr(k));
                 } else {
-                    residuals(k) += movie_features(i, movie_arr(k)) * user_features(i, user_arr(k));
+                    residuals(k) += movie_features(i, movie_arr(k))
+                                  * user_features(i, user_arr(k));
                     err -= residuals(k);
                 }
 
@@ -135,7 +140,6 @@ float *SVDImpl::predict(uint32_t *users, uint32_t *movies, int npoints) {
         user_arr(users, 1, npoints);
     Eigen::Map<Eigen::Array<uint32_t, 1, Eigen::Dynamic> >
         movie_arr(movies, 1, npoints);
-
 
     // In particular, allocate a new array for the result.
     Eigen::Array<float, 1, Eigen::Dynamic>result_arr (1, npoints);
