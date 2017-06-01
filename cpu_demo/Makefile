@@ -1,6 +1,4 @@
-CXX = /usr/local/Cellar/llvm/3.9.0/bin/clang++
-CXXFLAGS = -O3 -fopenmp -march=native --std=c++14
-LDFLAGS += -L/usr/local/Cellar/llvm/3.9.0/lib/ -fopenmp
+CXXFLAGS = -O3 --std=c++14
 
 demo: SVD.o SVDImpl.o movielens_demo.o
 	$(CXX) $(LDFLAGS) $^ -o $@
