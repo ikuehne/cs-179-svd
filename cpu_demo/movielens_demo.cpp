@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <istream>
 #include <fstream>
@@ -10,13 +12,13 @@
 struct DataPoint {
     uint32_t user;
     uint32_t movie;
-    uint8_t rating;
+    float rating;
 };
 
 struct Dataset {
     uint32_t *users;
     uint32_t *movies;
-    uint8_t *ratings;
+    float *ratings;
     int count;
 
     Dataset(void): users(nullptr), movies(nullptr), ratings(nullptr) {}
@@ -24,7 +26,7 @@ struct Dataset {
     Dataset(std::vector<DataPoint> &v): count(v.size()) {
         users = new uint32_t[count];
         movies = new uint32_t[count];
-        ratings = new uint8_t[count];
+        ratings = new float[count];
 
         for (int i = 0; i < count; ++i) {
             users[i] = v[i].user;
@@ -39,6 +41,14 @@ struct Dataset {
         std::cerr << "5: (" << users[5]
                     << ", " << movies[5]
                     << ", " << (int)ratings[5] << ")\n";
+    }
+
+    uint32_t max_user(void) {
+        return *std::max_element(users, users + count - 1);
+    }
+
+    uint32_t max_movie(void) {
+        return *std::max_element(movies, movies + count - 1);
     }
 };
 
@@ -76,7 +86,7 @@ void read_csv(std::istream &data_in, std::istream &indices_in,
 
         auto point = DataPoint{(uint32_t)std::stoi(user) - 1,
                                (uint32_t)std::stoi(movie) - 1,
-                               (uint8_t)(std::stof(rating) * 2)};
+                               std::stof(rating)};
         switch (i) {
             case 0: base_v.push_back(point);
                     break;
@@ -112,7 +122,21 @@ int main(int argc, char **argv) {
 
     read_csv(data_in, indices_in, base, valid, test);
 
-    base.debug();
-    valid.debug();
-    test.debug();
+    SVD model(base.max_user() + 1, base.max_movie() + 1, 8);
+
+    model.fit(base.users, base.movies, base.ratings,
+              base.count, 0.005, 0.02, 40, true);
+
+    auto predictions = model.predict(valid.users, valid.movies, valid.count);
+
+    float total = 0;
+    for (int i = 0; i < valid.count; ++i) {
+        float diff = predictions[i] - valid.ratings[i];
+
+        total += diff * diff;
+    }
+
+    total /= valid.count;
+
+    std::cerr << "RMSE: " << sqrt(total) << "\n";
 }

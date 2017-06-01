@@ -41,7 +41,7 @@ public:
      * @param niters The number of iterations to run on each feature.
      * @param verbose Whether to print progress while training.
      */
-    void fit(uint32_t *users, uint16_t *movies, float *ratings,
+    void fit(uint32_t *users, uint32_t *movies, float *ratings,
                int npoints, float lrate, float reg, int niters, bool verbose);
 
     /**
@@ -56,7 +56,7 @@ public:
      *         predicted rating of `users[i]` for `movies[i]`.  The result has
      *         length `npoints`, and is owned by the caller.
      */
-    float *predict(uint32_t *users, uint16_t *movies, int npoints);
+    float *predict(uint32_t *users, uint32_t *movies, int npoints);
 
     // Forward-declare this, since we don't yet know the size of SVDImpl.
     ~SVD();

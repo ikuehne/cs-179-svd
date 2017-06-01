@@ -14,12 +14,12 @@
 SVD::SVD(int nusers, int nmovies, int nfeatures) 
     : pimpl(new SVDImpl(nusers, nmovies, nfeatures)) {}
 
-void SVD::fit(uint32_t *users, uint16_t *movies, float *ratings,
+void SVD::fit(uint32_t *users, uint32_t *movies, float *ratings,
                 int npoints, float lrate, float reg, int niters, bool verbose) {
     pimpl->fit(users, movies, ratings, npoints, lrate, reg, niters, verbose);
 }
 
-float *SVD::predict(uint32_t *users, uint16_t *movies, int npoints) {
+float *SVD::predict(uint32_t *users, uint32_t *movies, int npoints) {
     return pimpl->predict(users, movies, npoints);
 }
 

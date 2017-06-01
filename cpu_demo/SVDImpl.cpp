@@ -23,12 +23,12 @@ SVDImpl::SVDImpl(int nusers, int nmovies, int nfeatures)
 
 }
 
-void SVDImpl::fit(uint32_t *users, uint16_t *movies, float *ratings,
+void SVDImpl::fit(uint32_t *users, uint32_t *movies, float *ratings,
                     int npoints, float lrate, float reg, int niters, bool verbose) {
     /* Convert the different C arrays to Eigen types. */
     Eigen::Map<Eigen::Array<uint32_t, 1, Eigen::Dynamic> >
         user_arr(users, 1, npoints);
-    Eigen::Map<Eigen::Array<uint16_t, 1, Eigen::Dynamic> >
+    Eigen::Map<Eigen::Array<uint32_t, 1, Eigen::Dynamic> >
         movie_arr(movies, 1, npoints);
     Eigen::Map<Eigen::Array<float, 1, Eigen::Dynamic> >
         rating_arr(ratings, 1, npoints);
@@ -124,16 +124,16 @@ void SVDImpl::fit(uint32_t *users, uint16_t *movies, float *ratings,
     }
 }
 
-inline float SVDImpl::predict(uint32_t user, uint16_t movie) const {
+inline float SVDImpl::predict(uint32_t user, uint32_t movie) const {
     return (user_features.col(user).array()
           * movie_features.col(movie).array()).sum();
 }
 
-float *SVDImpl::predict(uint32_t *users, uint16_t *movies, int npoints) {
+float *SVDImpl::predict(uint32_t *users, uint32_t *movies, int npoints) {
     // Convert the C pointers to Eigen arrays.
     Eigen::Map<Eigen::Array<uint32_t, 1, Eigen::Dynamic> >
         user_arr(users, 1, npoints);
-    Eigen::Map<Eigen::Array<uint16_t, 1, Eigen::Dynamic> >
+    Eigen::Map<Eigen::Array<uint32_t, 1, Eigen::Dynamic> >
         movie_arr(movies, 1, npoints);
 
 
@@ -153,7 +153,7 @@ float *SVDImpl::predict(uint32_t *users, uint16_t *movies, int npoints) {
 
 inline void SVDImpl::predict_inplace(
         const Eigen::Array<uint32_t, 1, Eigen::Dynamic> &users,
-        const Eigen::Array<uint16_t, 1, Eigen::Dynamic> &movies,
+        const Eigen::Array<uint32_t, 1, Eigen::Dynamic> &movies,
         Eigen::Array<float, 1, Eigen::Dynamic> &result) {
     // Go through each point to predict.
     for (int i = 0; i < users.cols(); i++) {
