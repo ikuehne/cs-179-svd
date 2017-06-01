@@ -1,8 +1,8 @@
 SVD CPU Demo
-------------
+============
 
 Building
-========
+--------
 
 Simple:
 
@@ -18,11 +18,11 @@ simply adding -fopenmp should usually work.  On MacOS, I bid you good luck.
 Probably whoever grades this doesn't care and will run it single-threaded.
 
 Getting data
-============
+------------
 
-A script (`get_data.py`) is included which fetches the data from the Interwebs
-and groups it into training, validation, and testing sets.  It can be invoked
-simply
+A script (`get_data.py`) is included which fetches the data (the MovieLens 20M
+dataset) from the Interwebs and groups it into training, validation, and testing
+sets.  It can be invoked simply
 
 ```
 python get_data.py
@@ -31,7 +31,7 @@ python get_data.py
 assuming you have Python, Numpy, and wget installed.
 
 Running
-=======
+-------
 
 You can invoke the demo after the above steps with
 
