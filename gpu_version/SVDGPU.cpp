@@ -54,6 +54,10 @@ void SVDGPU::fit(uint32_t *users, uint32_t *movies, float *ratings,
                       feature, lrate, reg, nfeatures, niters);
     }
 
+    gpuErrChk(
+        cudaDeviceSynchronize()
+    );
+
     cudaFree(data.users);
     cudaFree(data.movies);
     cudaFree(data.ratings);

@@ -44,19 +44,10 @@ __global__ void compute_gradient_kernel(
         float *movie_fp = movie_features
                         + (movie * nfeatures + current_feature);
 
-        atomicAdd(user_fp,
-                  lrate * (error * (*movie_fp) - reg * (*user_fp)));
-        atomicAdd(movie_fp,
-                  lrate * (error * (*user_fp) - reg * (*movie_fp)));
-
-        if (*user_fp < -5) *user_fp = -5;
-        if (*user_fp > 5)  *user_fp = 5;
-        if (isnan(*user_fp)) *user_fp = 10;
-
-        if (*movie_fp < -5) *movie_fp = -5;
-        if (*movie_fp > 5)  *movie_fp = 5;
-        if (isnan(*movie_fp)) *movie_fp = 10;
-
+        *user_fp +=
+                  lrate * (error * (*movie_fp) - reg * (*user_fp));
+        *movie_fp +=
+                  lrate * (error * (*user_fp) - reg * (*movie_fp));
     }
 }
 
@@ -76,8 +67,8 @@ void train_feature(float *user_features, float *movie_features,
 
     for (int i = 0; i < niters; ++i) {
         compute_gradient_kernel<<<1, 1024>>>(user_features, movie_features,
-                                             data, current_feature,
-                                             lrate, reg, nfeatures);
+                                                data, current_feature,
+                                                lrate, reg, nfeatures);
     }
 
     gpuErrChk(
