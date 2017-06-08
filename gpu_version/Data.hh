@@ -1,11 +1,73 @@
 #pragma once
 
+#include <istream>
+#include <limits>
+#include <ostream>
+#include <unordered_set>
 #include <vector>
+
+const uint32_t DONE_CODE = std::numeric_limits<uint32_t>::max();
+
+const int BATCH_SIZE = 256;
 
 struct DataPoint {
     uint32_t user;
     uint32_t movie;
     float rating;
+};
+
+struct Batch {
+    DataPoint *data;
+
+    Batch(void) {
+        data = new DataPoint[BATCH_SIZE];
+    }
+
+    Batch(std::istream &in) {
+        data = new DataPoint[BATCH_SIZE];
+
+        in.read((char *)data, BATCH_SIZE * sizeof(DataPoint));
+    }
+
+    void serialize(std::ostream &out) {
+        out.write((char *)data, BATCH_SIZE * sizeof(DataPoint));
+    }
+};
+
+class Batcher {
+    std::unordered_set<uint32_t> users;
+    std::unordered_set<uint32_t> movies;
+    Batch batch;
+    int count;
+
+public:
+    Batch finish_batch(void) {
+        if (count < BATCH_SIZE) {
+            batch.data[count].user = DONE_CODE;
+        }
+
+        return batch;
+    }
+
+    bool add_point(DataPoint p) {
+        if (full()) return false;
+
+        if (users.count(p.user)) return false;
+        if (movies.count(p.movie)) return false;
+
+        users.insert(p.user);
+        movies.insert(p.movie);
+
+        batch.data[count] = p;
+
+        ++count;
+
+        return true;
+    }
+
+    bool full(void) {
+        return count >= BATCH_SIZE;
+    }
 };
 
 struct Dataset {

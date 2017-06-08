@@ -5,6 +5,7 @@
 #include <istream>
 #include <fstream>
 #include <iostream>
+#include <list>
 #include <random>
 #include <string>
 #include <vector>
@@ -86,37 +87,54 @@ struct IndependentDataset {
     }
 };
 
-int count_independent_sets(Dataset base) {
-    std::vector<IndependentDataset> sets;
+std::vector<Batch> get_batches(Dataset base) {
+    std::list<Batcher> batchers;
+    std::vector<Batch> batches;
 
-    uint32_t nusers = base.max_user() + 1;
-    uint32_t nmovies = base.max_movie() + 1;
-
+    int nadded = 0;
     for (int i = 0; i < base.count; ++i) {
         if (i % 50000 == 0) {
             std::cerr << "At point " << i << 
-                         " with " << sets.size() << ".\n";
+                         " with " << batches.size() + batchers.size()
+                      << ".\n";
         }
 
         uint32_t user = base.users[i];
         uint32_t movie = base.movies[i];
+        float rating = base.ratings[i];
 
         bool success = false;
 
-        for (int j = 0; j < (int)sets.size(); ++j) {
-            if (sets[j].try_add(user, movie)) {
+        for (auto batcheri = batchers.begin();
+             batcheri != batchers.end();
+             batcheri++) {
+            auto &batcher = *batcheri;
+            if (batcher.add_point(DataPoint{user, movie, rating})) {
                 success = true;
+
+                if (batcher.full()) {
+                    batches.push_back(batcher.finish_batch());
+                    batchers.erase(batcheri);
+                }
                 break;
             }
         }
 
         if (!success) {
-            sets.push_back(IndependentDataset(nusers, nmovies));
-            assert(sets.back().try_add(user, movie));
+            batchers.push_back(Batcher());
+            nadded++;
+            assert(batchers.back().add_point(DataPoint{user, movie, rating}));
+            if (nadded % 10 == 0) {
+                batchers.reverse();
+            }
         }
     }
 
-    return sets.size();
+    for (auto &batcher: batchers) {
+        batches.push_back(batcher.finish_batch());
+    }
+
+    return batches;
 }
 
 int main(int argc, char **argv) {
@@ -139,5 +157,37 @@ int main(int argc, char **argv) {
 
     read_csv(data_in, indices_in, base, valid, test);
 
-    std::cout << "Count: " << count_independent_sets(base) << "\n";
+    auto batches = get_batches(base);
+
+    uint32_t test_user = batches[6].data[4].user;
+    uint32_t test_movie = batches[6].data[4].movie;
+    float test_rating = batches[6].data[4].rating;
+
+    {
+        std::ofstream batch_out("batches.out");
+        for (auto batch: batches) {
+            batch.serialize(batch_out);
+        }
+    }
+
+    std::ifstream batch_in("batches.out");
+
+    std::vector<Batch> test_batches;
+
+    while (!batch_in.eof()) {
+        test_batches.push_back(Batch(batch_in));
+    }
+
+    test_batches.pop_back();
+
+    uint32_t new_user = test_batches[6].data[4].user;
+    uint32_t new_movie = test_batches[6].data[4].movie;
+    float new_rating = test_batches[6].data[4].rating;
+
+    std::cout << "Old count " << batches.size()
+              << "; now " << test_batches.size() << ".\n";
+    std::cout << "Old user " << test_user << "; now " << new_user << ".\n";
+    std::cout << "Old movie " << test_movie << "; now " << new_movie << ".\n";
+    std::cout << "Old rating " << test_rating
+              << "; now " << new_rating << ".\n";
 }
