@@ -87,21 +87,21 @@ struct IndependentDataset {
     }
 };
 
-std::vector<Batch> get_batches(Dataset base) {
+std::vector<Batch> get_batches(DataPoint *base, int count) {
     std::list<Batcher> batchers;
     std::vector<Batch> batches;
 
     int nadded = 0;
-    for (int i = 0; i < base.count; ++i) {
+    for (int i = 0; i < count; ++i) {
         if (i % 50000 == 0) {
             std::cerr << "At point " << i << 
                          " with " << batches.size() + batchers.size()
                       << ".\n";
         }
 
-        uint32_t user = base.users[i];
-        uint32_t movie = base.movies[i];
-        float rating = base.ratings[i];
+        uint32_t user = base[i].user;
+        uint32_t movie = base[i].movie;
+        float rating = base[i].rating;
 
         bool success = false;
 
@@ -140,24 +140,30 @@ std::vector<Batch> get_batches(Dataset base) {
 int main(int argc, char **argv) {
     const std::string usage = std::string("usage: ")
                             + argv[0]
-                            + " movielens_ratings movielens_indices";
+                            + " base_ratings";
 
-    if (argc != 3) {
+    if (argc != 2) {
         std::cerr << usage << '\n';
 
         return 1;
     }
 
-    std::ifstream data_in(argv[1]);
-    std::ifstream indices_in(argv[2]);
+    std::ifstream data_in(argv[1], std::ios::binary | std::ios::ate);
+    int size = data_in.tellg();
+    int count = size / sizeof(DataPoint);
+    data_in.seekg(0);
 
-    Dataset base;
-    Dataset valid;
-    Dataset test;
+    DataPoint *base = new DataPoint[count];
 
-    read_csv(data_in, indices_in, base, valid, test);
+    data_in.read((char *)base, size);
 
-    auto batches = get_batches(base);
+    std::cerr << "Shuffling..." << std::endl;
+
+    std::random_shuffle(base, base + count);
+
+    std::cerr << "Done shuffling." << std::endl;
+
+    auto batches = get_batches(base, count);
 
     uint32_t test_user = batches[6].data[4].user;
     uint32_t test_movie = batches[6].data[4].movie;
@@ -170,15 +176,23 @@ int main(int argc, char **argv) {
         }
     }
 
-    std::ifstream batch_in("batches.out");
+    std::ifstream batch_in("batches.out", std::ios::binary | std::ios::ate);
 
     std::vector<Batch> test_batches;
 
-    while (!batch_in.eof()) {
-        test_batches.push_back(Batch(batch_in));
-    }
+    size = batch_in.tellg();
+    batch_in.seekg(0);
 
-    test_batches.pop_back();
+    char *buf = new char[size];
+
+    batch_in.read(buf, size);
+
+    int incr = BATCH_SIZE * sizeof(DataPoint);
+    for (int i = 0; i + incr <= size; i += incr) {
+        Batch b;
+        b.data = (DataPoint *)(buf + i);
+        test_batches.push_back(b);
+    }
 
     uint32_t new_user = test_batches[6].data[4].user;
     uint32_t new_movie = test_batches[6].data[4].movie;

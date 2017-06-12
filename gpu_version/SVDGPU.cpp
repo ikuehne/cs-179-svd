@@ -1,4 +1,5 @@
 #include <cuda_runtime.h>
+#include <curand.h>
 #include <cstdlib>
 #include <iostream>
 
@@ -25,19 +26,25 @@ inline void gpuAssert(
 
 SVDGPU::SVDGPU(int nusers, int nmovies, int nfeatures)
       : nusers(nusers), nmovies(nmovies), nfeatures(nfeatures) {
+    curandGenerator_t gen;
+
+    curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
+
     gpuErrChk (
         cudaMallocManaged(&user_features, nusers * nfeatures * sizeof(float))
     );
 
-    fill_array(user_features, 0.1, nusers * nfeatures);
+    curandGenerateNormal(gen, user_features, nusers * nfeatures, 0.1, 0.05);
 
     gpuErrChk (
         cudaMallocManaged(&movie_features, nmovies * nfeatures * sizeof(float))
     );
 
-    fill_array(movie_features, 0.1, nmovies * nfeatures);
+    curandGenerateNormal(gen, movie_features, nmovies * nfeatures, 0.1, 0.05);
 
-    cudaDeviceSynchronize();
+    gpuErrChk(
+        cudaDeviceSynchronize()
+    );
 }
 
 SVDGPU::~SVDGPU(void) {
@@ -45,49 +52,32 @@ SVDGPU::~SVDGPU(void) {
     cudaFree(movie_features);
 }
 
-void SVDGPU::fit(uint32_t *users, uint32_t *movies, float *ratings,
-                 int npoints, float lrate, float reg, int niters) {
-    auto data = to_gpu(users, movies, ratings, npoints);
-    for (int feature = 0; feature < nfeatures; ++feature) {
-        std::cerr << "Calling kernel for feature " << feature << "...\n";
-        train_feature(user_features, movie_features, data,
-                      feature, lrate, reg, nfeatures, niters);
-    }
+void SVDGPU::fit(DataPoint *batches, int nbatches,
+                 float lrate, float reg, int niters) {
+    int data_bytes = nbatches * BATCH_SIZE * sizeof(DataPoint); 
+    DataPoint *dev_batches;
+    cudaMalloc(&dev_batches, data_bytes);
 
-    gpuErrChk(
-        cudaDeviceSynchronize()
-    );
+    std::cerr << "Copying data to device...\n";
+    cudaMemcpy(dev_batches, batches, data_bytes, cudaMemcpyHostToDevice);
+    std::cerr << "Done copying data...\n";
 
-    cudaFree(data.users);
-    cudaFree(data.movies);
-    cudaFree(data.ratings);
+    for (int i = 0; i < niters; ++i) {
+        std::cerr << "Iteration " << i << ".\n";
+        for (int batch = 0; batch < nbatches; ++batch) {
 
-    for (int user = 0; user < nusers; ++user) {
-        for (int feature = 0; feature < nfeatures; ++feature) {
-            float u = user_features[user * nfeatures + feature];
+            Batch b;
 
-            /*
-            if (u < -1 || u > 1) {
-                std::cerr << "We got a problem (" << u << ") at "
-                          << "user " << user << ", "
-                          << "feature " << feature << ".\n";
-            }
-            */
+            b.data = dev_batches + batch * BATCH_SIZE;
+
+            train_batch(b, user_features, movie_features,
+                        lrate, reg, nfeatures);
         }
     }
 
-    for (int movie = 0; movie < nmovies; ++movie) {
-        for (int feature = 0; feature < nfeatures; ++feature) {
-            float m = movie_features[movie * nfeatures + feature];
+    std::cerr << "All done!\n";
 
-            /*
-            if (m < -1 || m > 1) {
-                std::cerr << "We got a problem (" << m << ") at "
-                          << "movie " << movie << ", "
-                          << "feature " << feature << ".\n";
-            }*/
-        }
-    }
+    cudaFree(dev_batches);
 }
 
 float *SVDGPU::predict(uint32_t *users, uint32_t *movies, int npoints) {
@@ -101,45 +91,12 @@ float *SVDGPU::predict(uint32_t *users, uint32_t *movies, int npoints) {
         }
     }
 
+    std::cerr << "Prediction 5: " << result[5] << "\n";
+    std::cerr << "User feature 10, 10: "
+              << user_features[10 * nfeatures + 10] << "\n";
+    std::cerr << "Movie feature 10, 10: "
+              << movie_features[10 * nfeatures + 10] << "\n";
+
     return result;
-}
-
-Dataset SVDGPU::to_gpu(uint32_t *users, uint32_t *movies, float *ratings,
-                       int count) {
-   uint32_t *dev_users, *dev_movies;
-   float *dev_ratings; 
-
-   std::cerr << "Allocating device memory...\n";
-
-   gpuErrChk(
-       cudaMalloc(&dev_users, count * sizeof *dev_users)
-   );
-   gpuErrChk(
-       cudaMalloc(&dev_movies, count * sizeof *dev_movies)
-   );
-   gpuErrChk(
-       cudaMalloc(&dev_ratings, count * sizeof *dev_ratings)
-   );
-
-   std::cerr << "Done. Copying to device...\n";
-
-   gpuErrChk(
-       cudaMemcpy(dev_users, users, count * sizeof *dev_users,
-                  cudaMemcpyHostToDevice)
-   );
-   gpuErrChk(
-       cudaMemcpy(dev_movies, movies, count * sizeof *dev_movies,
-                  cudaMemcpyHostToDevice)
-   );
-   gpuErrChk(
-       cudaMemcpy(dev_ratings, ratings, count * sizeof *dev_ratings,
-                  cudaMemcpyHostToDevice)
-   );
-
-   cudaDeviceSynchronize();
-
-   std::cerr << "Done.\n";
-
-   return Dataset(dev_users, dev_movies, dev_ratings, count);
 }
 

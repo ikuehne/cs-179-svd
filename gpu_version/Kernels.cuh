@@ -4,9 +4,8 @@
 
 #include "Data.hh"
 
-void train_feature(float *user_features, float *movie_features,
-                   Dataset data, int current_feature,
-                   float lrate, float reg, int nfeatures,
-                   int niters);
+void train_batch(Batch b,
+                 float *user_features, float *movie_features,
+                 float lrate, float reg, int nfeatures);
 
 void fill_array(float *arr, float val, int size);

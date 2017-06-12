@@ -6,15 +6,14 @@ class SVDGPU {
 public:
     SVDGPU(int nusers, int nmovies, int nfeatures);
 
-    void fit(uint32_t *users, uint32_t *movies, float *ratings,
-             int npoints, float lrate, float reg, int niters);
+    void fit(DataPoint *batches, int nbatches,
+             float lrate, float reg, int niters);
 
     float *predict(uint32_t *users, uint32_t *movies, int npoints);
-    ~SVDGPU(void);
-private:
-    Dataset to_gpu(uint32_t *users, uint32_t *movies, float *ratings,
-                   int count);
 
+    ~SVDGPU(void);
+
+private:
     int nusers;
     int nmovies;
     float *user_features;

@@ -15,15 +15,15 @@ NVCC            ?= $(CUDA_BIN_PATH)/nvcc
 
 # OS-specific build flags
 ifeq ($(shell uname),Darwin)
-      LDFLAGS   := -Xlinker -rpath $(CUDA_LIB_PATH) -L$(CUDA_LIB_PATH) -lcudart
+      LDFLAGS   := -Xlinker -rpath $(CUDA_LIB_PATH) -L$(CUDA_LIB_PATH) -lcudart -lcurand
       CCFLAGS   := -arch $(OS_ARCH)
 else
   ifeq ($(OS_SIZE),32)
-      LDFLAGS   := -L$(CUDA_LIB_PATH) -lcudart
+      LDFLAGS   := -L$(CUDA_LIB_PATH) -lcudart -lcurand
       CCFLAGS   := -m32
   else
       CUDA_LIB_PATH := $(CUDA_LIB_PATH)64
-      LDFLAGS       := -L$(CUDA_LIB_PATH) -lcudart
+      LDFLAGS       := -L$(CUDA_LIB_PATH) -lcudart -lcurand
       CCFLAGS       := -m64
   endif
 endif

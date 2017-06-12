@@ -6,7 +6,7 @@
 #include <unordered_set>
 #include <vector>
 
-const uint32_t DONE_CODE = std::numeric_limits<uint32_t>::max();
+const uint32_t DONE_CODE = 0xFFFFFFFF;
 
 const int BATCH_SIZE = 256;
 
@@ -42,7 +42,7 @@ class Batcher {
 
 public:
     Batch finish_batch(void) {
-        if (count < BATCH_SIZE) {
+        for (; count < BATCH_SIZE; ++count) {
             batch.data[count].user = DONE_CODE;
         }
 
@@ -122,5 +122,3 @@ struct Dataset {
         return *std::max_element(movies, movies + count - 1);
     }
 };
-
-
