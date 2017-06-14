@@ -61,18 +61,18 @@ version, but took about 3x as long.
 
 To solve those problems, we use the following algorithm:
 
-    1. Batch the data.  Split it into chunks of 256 points, where no two points
-       in a batch have a user or movie in common (i.e., the gradients of all
-       points in a batch are independent).  This is done in the preprocessing
-       stage, with a randomized greedy algorithm.
-    2. Running one batch at a time, assign each point in the batch to one block,
-       and each feature at that point to one thread.
-    3. Have the threads load the relevant user and movie features into shared
-       memory.  The accesses are parallel and coalesced.
-    4. Run a reduction to compute the dot product of the user and movie
-       features.
-    5. With the error computed in shared memory, each thread computes the
-       gradient at its feature, and does the update.
+1. Batch the data.  Split it into chunks of 256 points, where no two points
+   in a batch have a user or movie in common (i.e., the gradients of all
+   points in a batch are independent).  This is done in the preprocessing
+   stage, with a randomized greedy algorithm.
+2. Running one batch at a time, assign each point in the batch to one block,
+   and each feature at that point to one thread.
+3. Have the threads load the relevant user and movie features into shared
+   memory.  The accesses are parallel and coalesced.
+4. Run a reduction to compute the dot product of the user and movie
+   features.
+5. With the error computed in shared memory, each thread computes the
+   gradient at its feature, and does the update.
 
 Thus, in contrast to the CPU version, all of the features are updated at each
 iteration.  That means that if we initialized them to a constant, as in the CPU
