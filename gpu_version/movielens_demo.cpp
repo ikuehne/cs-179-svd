@@ -8,21 +8,13 @@
 #include <string>
 #include <vector>
 
+#include "ta_utilities.hpp"
 #include "SVD.hh"
 #include "SVDGPU.hh"
 
-std::pair<int, char *>read_file(std::string fname) {
-    std::ifstream in(fname, std::ios::binary | std::ios::ate);
-    int size = in.tellg();
-    char *data = new char[size];
-
-    in.seekg(0);
-
-    in.read(data, size);
-
-    return std::pair<int, char *>(size, data);
-}
-
+/**
+ * Find the maximum user and movie from the given dataset.
+ */
 std::pair<uint32_t, uint32_t> maxima(DataPoint *data, int count) {
     uint32_t max_user = 0;
     uint32_t max_movie = 0;
@@ -43,6 +35,7 @@ std::pair<uint32_t, uint32_t> maxima(DataPoint *data, int count) {
 }
 
 int main(int argc, char **argv) {
+    // Check the command-line arguments.
     const std::string usage = std::string("usage: ")
                             + argv[0]
                             + " batches valid";
@@ -53,9 +46,11 @@ int main(int argc, char **argv) {
         return 1;
     }
 
+    // Read the data in.
     auto base = read_file(argv[1]);
     auto valid = read_file(argv[2]);
 
+    // Compute the max user/movie.
     auto base_maxima = maxima((DataPoint *)base.second,
                               base.first / sizeof(DataPoint));
     auto valid_maxima = maxima((DataPoint *)valid.second,
@@ -64,12 +59,18 @@ int main(int argc, char **argv) {
     auto max_user = std::max(base_maxima.first, valid_maxima.first);
     auto max_movie = std::max(base_maxima.second, valid_maxima.second);
     
-    SVDGPU model(max_user + 1, max_movie + 1, 32);
+    // Create the model.
+    SVDGPU model(max_user + 1, max_movie + 1, 256);
 
+    // Count the batches.
     int nbatches = base.first / (sizeof(DataPoint) * BATCH_SIZE);
 
-    model.fit((DataPoint *)base.second, nbatches, 0.005, 0.02, 10);
+    TA_Utilities::select_coldest_GPU();
 
+    // Fit the model.
+    model.fit((DataPoint *)base.second, nbatches, 0.001, 0.02, 10);
+
+    // Get the validation set ready for predicting.
     int valid_count = valid.first / sizeof(DataPoint);
 
     uint32_t *valid_users = new uint32_t[valid_count];
@@ -83,8 +84,10 @@ int main(int argc, char **argv) {
         assert(valid_data[i].user <= max_user);
     }
 
+    // Get predictions on the validation set.
     auto predictions = model.predict(valid_users, valid_movies, valid_count);
 
+    // Compute the RMSE.
     float total = 0;
     for (int i = 0; i < valid_count; ++i) {
         float diff = predictions[i] - valid_data[i].rating;
@@ -93,5 +96,6 @@ int main(int argc, char **argv) {
 
     total /= valid_count;
 
+    // Print it out.
     std::cerr << "RMSE: " << sqrt(total) << "\n";
 }

@@ -1,5 +1,7 @@
 CC = /usr/bin/g++
 
+CXXFLAGS = -O3 --std=c++11
+
 LD_FLAGS = -lrt
 
 CUDA_PATH       ?= /usr/local/cuda
@@ -35,23 +37,29 @@ else
       NVCCFLAGS := -m64
 endif
 
-TARGETS = gpu_demo
+TARGETS = batch gpu_demo
 
 all: $(TARGETS)
 
-gpu_demo: movie_lens_demo.o Kernels.o SVDGPU.o
+batch: batch.o
+	$(CC) $^ $(LDFLAGS) -o $@
+
+batch.o: batch.cpp
+	$(CC) -c $^ --std=c++11 -O3
+
+gpu_demo: movielens_demo.o Kernels.o SVDGPU.o Data.o ta_utilities.o
 	$(CC) $^ -std=c++0x -o $@ -O3 $(LDFLAGS) -Wall -I$(CUDA_INC_PATH)
 
-Kernels.o: Kernels.cu Kernels.cuh
+Kernels.o: Kernels.cu Kernels.cuh Data.o
 	$(NVCC) $(NVCCFLAGS) -O3 $(EXTRA_NVCCFLAGS) $(GENCODE_FLAGS) -I$(CUDA_INC_PATH) -o $@ -c $<
 
 SVDGPU.o: SVDGPU.cpp
-	$(CC) -std=c++11 -O3 $(LDFLAGS) -Wall -I$(CUDA_INC_PATH) -o $@ -c $<
+	$(CXX) -std=c++11 -O3 $(CXXFLAGS) -Wall -I$(CUDA_INC_PATH) -o $@ -c $<
 	
 clean:
 	rm -f *.o $(TARGETS)
 
-movie_lens_demo.o: movielens_demo.cpp
-	$(CC) -std=c++11 -O3 $(LDFLAGS) -Wall -o $@ -c $<
+movielens_demo.o: movielens_demo.cpp
+	$(CXX) -std=c++11 -O3 $(CXXFLAGS) -Wall -o $@ -c $<
 
 again: clean $(TARGETS)

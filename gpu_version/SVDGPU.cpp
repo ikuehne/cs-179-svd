@@ -24,8 +24,7 @@ inline void gpuAssert(
 }
 
 
-SVDGPU::SVDGPU(int nusers, int nmovies, int nfeatures)
-      : nusers(nusers), nmovies(nmovies), nfeatures(nfeatures) {
+SVDGPU::SVDGPU(int nusers, int nmovies, int nfeatures): nfeatures(nfeatures) {
     curandGenerator_t gen;
 
     curandCreateGenerator(&gen, CURAND_RNG_PSEUDO_DEFAULT);
@@ -61,9 +60,8 @@ void SVDGPU::fit(DataPoint *batches, int nbatches,
     std::cerr << "Copying data to device...\n";
     cudaMemcpy(dev_batches, batches, data_bytes, cudaMemcpyHostToDevice);
     std::cerr << "Done copying data...\n";
-
     for (int i = 0; i < niters; ++i) {
-        std::cerr << "Iteration " << i << ".\n";
+        std::cerr << "Iteration " << i + 1 << ".\n";
         for (int batch = 0; batch < nbatches; ++batch) {
 
             Batch b;
@@ -74,6 +72,10 @@ void SVDGPU::fit(DataPoint *batches, int nbatches,
                         lrate, reg, nfeatures);
         }
     }
+
+    gpuErrChk(
+        cudaDeviceSynchronize()
+    );
 
     std::cerr << "All done!\n";
 
@@ -91,12 +93,5 @@ float *SVDGPU::predict(uint32_t *users, uint32_t *movies, int npoints) {
         }
     }
 
-    std::cerr << "Prediction 5: " << result[5] << "\n";
-    std::cerr << "User feature 10, 10: "
-              << user_features[10 * nfeatures + 10] << "\n";
-    std::cerr << "Movie feature 10, 10: "
-              << movie_features[10 * nfeatures + 10] << "\n";
-
     return result;
 }
-
