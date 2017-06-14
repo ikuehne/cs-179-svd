@@ -23,7 +23,6 @@ inline void gpuAssert(
     }
 }
 
-
 SVDGPU::SVDGPU(int nusers, int nmovies, int nfeatures): nfeatures(nfeatures) {
     curandGenerator_t gen;
 
