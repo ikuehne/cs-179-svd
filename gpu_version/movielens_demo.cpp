@@ -64,16 +64,17 @@ int main(int argc, char **argv) {
     // Count the batches.
     int nbatches = base.first / (sizeof(DataPoint) * BATCH_SIZE);
 
-    TA_Utilities::select_coldest_GPU();
+    //TA_Utilities::select_coldest_GPU();
 
     // Fit the model.
-    model.fit((DataPoint *)base.second, nbatches, 0.001, 0.02, 10);
+    model.fit((DataPoint *)base.second, nbatches, 0.001, 0.02, 50);
 
     // Get the validation set ready for predicting.
     int valid_count = valid.first / sizeof(DataPoint);
 
     uint32_t *valid_users = new uint32_t[valid_count];
     uint32_t *valid_movies = new uint32_t[valid_count];
+
     auto valid_data = (DataPoint *)valid.second;
 
     for (int i = 0; i < valid_count; ++i) {
@@ -86,6 +87,9 @@ int main(int argc, char **argv) {
     // Get predictions on the validation set.
     auto predictions = model.predict(valid_users, valid_movies, valid_count);
 
+    delete[] valid_users;
+    delete[] valid_movies;
+
     // Compute the RMSE.
     float total = 0;
     for (int i = 0; i < valid_count; ++i) {
@@ -97,4 +101,7 @@ int main(int argc, char **argv) {
 
     // Print it out.
     std::cerr << "RMSE: " << sqrt(total) << "\n";
+
+    delete[] base.second;
+    delete[] valid.second;
 }

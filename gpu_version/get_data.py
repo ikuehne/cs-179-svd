@@ -6,21 +6,23 @@ from os import path
 import sys
 
 def read_array(fname):
+    """Read an array in MovieLens's CSV format."""
+    # Use csv.  It's pretty slow, but Numpy's text-reading functions use an
+    # absurd amount of memory.
     with open(fname) as f:
         r = itertools.islice(csv.reader(f), 1, None, 1)
         l = [(int(x[0]), int(x[1]), float(x[2])) for x in r]
     result = np.array(l, dtype=np.dtype([('user',   np.uint32),
                                          ('movie',  np.uint32),
                                          ('rating', np.float32)]))
+
+    # MovieLens's user/movie indices are 1-based.  Let's fix that...
     result['user'] -= 1
     result['movie'] -= 1
     return result
 
-def line_count(fname):
-    with open(fname) as f:
-        return sum(1 for _ in f)
-
 def get_indices(count):
+    """Randomly generate a data hierarchy."""
     result = np.empty(count, dtype=np.uint8)
     r = np.random.rand(count)
     result[r <= 0.98] = 0
@@ -29,6 +31,7 @@ def get_indices(count):
     return result
 
 def preprocess(fname):
+    """Convert MovieLens's ZIP file to our .dat format."""
     os.system("unzip {}".format(fname))
     # Strip off `.zip`
     dirname = fname[:-4]
@@ -53,6 +56,7 @@ def preprocess(fname):
     print "Done."
 
 def fix_movie_ids(data):
+    """Remove all of the gaps in the movie IDs."""
     y = np.empty(np.max(data['movie']) + 1, dtype=np.uint32)
     u = np.unique(data['movie'])
     y[u] = np.arange(len(u))

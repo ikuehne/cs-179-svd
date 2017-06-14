@@ -1,6 +1,6 @@
 CC = /usr/bin/g++
 
-CXXFLAGS = -O3 --std=c++11
+CXXFLAGS += -O3 --std=c++11
 
 LD_FLAGS = -lrt
 
@@ -37,7 +37,7 @@ else
       NVCCFLAGS := -m64
 endif
 
-TARGETS = batch gpu_demo
+TARGETS = batch demo
 
 all: $(TARGETS)
 
@@ -47,7 +47,7 @@ batch: batch.o
 batch.o: batch.cpp
 	$(CC) -c $^ --std=c++11 -O3
 
-gpu_demo: movielens_demo.o Kernels.o SVDGPU.o Data.o ta_utilities.o
+demo: movielens_demo.o Kernels.o SVDGPU.o Data.o ta_utilities.o
 	$(CC) $^ -std=c++0x -o $@ -O3 $(LDFLAGS) -Wall -I$(CUDA_INC_PATH)
 
 Kernels.o: Kernels.cu Kernels.cuh Data.o
