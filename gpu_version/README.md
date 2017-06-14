@@ -1,5 +1,5 @@
-SVD CPU Demo
-============
+SVD on the GPU
+==============
 
 Building
 --------
