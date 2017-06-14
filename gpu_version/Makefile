@@ -55,6 +55,9 @@ Kernels.o: Kernels.cu Kernels.cuh Data.o
 
 SVDGPU.o: SVDGPU.cpp
 	$(CXX) -std=c++11 -O3 $(CXXFLAGS) -Wall -I$(CUDA_INC_PATH) -o $@ -c $<
+
+ta_utilities.o: ta_utilities.cpp
+	$(CXX) -std=c++11 -O3 $(CXXFLAGS) -Wall -I$(CUDA_INC_PATH) -o $@ -c $<
 	
 clean:
 	rm -f *.o $(TARGETS)

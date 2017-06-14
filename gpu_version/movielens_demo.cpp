@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "ta_utilities.hpp"
-#include "SVD.hh"
 #include "SVDGPU.hh"
 
 /**
